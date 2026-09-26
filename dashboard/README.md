@@ -1,6 +1,6 @@
 # TalentRadar｜智能招聘情报 Agent（Davina）
 
-产品层工作台说明。对外名称 **TalentRadar**，助手 / 出品品牌 **Davina**。
+多源招聘情报工作台。支持本机调试与公网访问；含 Agnes AI 岗位点评、简历匹配与产品 PRD。
 
 ## 本机启动
 
@@ -9,16 +9,11 @@ cd dashboard
 streamlit run davina_workbench.py --server.port 8501
 ```
 
-## 服务器 / 外网
-
-见 [DEPLOY.md](./DEPLOY.md)。Streamlit Cloud 入口文件：`dashboard/davina_workbench.py`。
-
 ## 功能
 
-- 单公司精查 / 赛道批量扫  
-- 公司池管理与门户一键接入  
-- Agent 流程可视与运行回放  
-- Agnes AI 岗位点评  
-- 简历 PDF/Word × JD 匹配与优化建议  
+- TalentRadar：多源拉岗、赛道扫描、Agent 流程回放  
+- Davina：产品形象与交互工作台  
+- AI 点评 / 简历×JD 匹配（Agnes 2.5 Flash）  
 - 感兴趣清单与导出  
-- 系统内产品 PRD  
+
+详见仓库根目录 README 与 `docs/PRD.md`。

@@ -48,6 +48,8 @@ try_add_company = _svc.try_add_company
 update_interested_job = _svc.update_interested_job
 
 from my_targets import (  # noqa: E402
+    BRAND_CN,
+    BRAND_DAVINA,
     BRAND_EN,
     BRAND_NAME,
     BRAND_TAGLINE,

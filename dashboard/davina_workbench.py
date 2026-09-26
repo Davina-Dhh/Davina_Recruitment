@@ -50,7 +50,6 @@ from my_targets import (  # noqa: E402
     BRAND_CN,
     BRAND_DAVINA,
     BRAND_EN,
-    BRAND_FULL,
     BRAND_NAME,
     BRAND_TAGLINE,
     DEFAULT_LOCATION_MODE,
@@ -84,7 +83,7 @@ _URI_SEARCH = _img_data_uri("davina-mascot-search.png")
 _URI_STEPS = _img_data_uri("davina-agent-steps.png")
 
 st.set_page_config(
-    page_title=f"{BRAND_FULL} · {BRAND_DAVINA}",
+    page_title=BRAND_NAME,
     page_icon="🦊",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -245,7 +244,7 @@ def _hero_html() -> str:
     )
     return (
         f'<div class="hero"><div>'
-        f'<p class="eyebrow">{html.escape(BRAND_DAVINA)} · {html.escape(BRAND_EN)}</p>'
+        f'<p class="eyebrow">{html.escape(BRAND_EN)} · {html.escape(BRAND_DAVINA)}</p>'
         f'<h1>{html.escape(BRAND_NAME)} <span>{html.escape(BRAND_CN)}</span></h1>'
         f'<p>{html.escape(BRAND_TAGLINE)}</p></div>{mascot}</div>'
     )
@@ -303,7 +302,7 @@ def _render_blueprint() -> None:
     st.caption("每一步做什么、用哪些能力；跑完检索后可在「运行回放」看真实数据。")
     if _URI_STEPS:
         st.markdown(
-            f'<img class="crew-banner" src="{_URI_STEPS}" alt="Davina Agent 五步角色" />',
+            f'<img class="crew-banner" src="{_URI_STEPS}" alt="TalentRadar × Davina Agent 流程角色" />',
             unsafe_allow_html=True,
         )
     _flow_band(st.session_state.active_stage)
@@ -437,7 +436,7 @@ def main() -> None:
             )
         st.markdown(f"### {BRAND_NAME}")
         st.caption(f"{BRAND_CN} · {BRAND_DAVINA}")
-        st.page_link("davina_workbench.py", label=f"{BRAND_NAME} 工作台", icon="🏠")
+        st.page_link("davina_workbench.py", label="TalentRadar 工作台", icon="🏠")
         st.page_link("pages/1_PRD.py", label="产品 PRD 文档", icon="📄")
         st.divider()
         if _ai.ai_ready():
@@ -722,7 +721,7 @@ def main() -> None:
             )
             st.markdown(
                 f'<div class="empty">{search_img}'
-                f'<div class="t">嗨，我是 {html.escape(BRAND_DAVINA)}，{html.escape(BRAND_NAME)} 小助手</div>'
+                f'<div class="t">嗨，我是 {html.escape(BRAND_DAVINA)} · {html.escape(BRAND_NAME)} 小助手</div>'
                 "打开左侧选公司点 <strong>开始检索</strong>；也可先上传简历，用手动 JD 做匹配。</div>",
                 unsafe_allow_html=True,
             )

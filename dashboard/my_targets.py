@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""TalentRadar / Davina · 投递画像与公司池
+"""Davina 秋招 · 投递画像与公司池
 
 - scrape_keys: 已接入 Hiring-Radar、可自动拉岗
 - wishlist: 期望覆盖但尚未自动拉岗（仅官网/待接入）
@@ -69,10 +69,9 @@ AGENT_PIPELINE = [
 
 BRAND_NAME = "TalentRadar"
 BRAND_CN = "智能招聘情报 Agent"
-BRAND_EN = "TALENTRADAR"
 BRAND_DAVINA = "Davina"
-BRAND_FULL = "TalentRadar｜智能招聘情报 Agent"
-BRAND_TAGLINE = "Davina 出品 · 多源拉岗 · Agent 可视 · AI 人岗 / 简历匹配"
+BRAND_EN = "TALENTRADAR"
+BRAND_TAGLINE = "智能招聘情报 Agent · Davina 工作台 · 多源拉岗 · AI 匹配"
 
 TRACKS = {
     "半导体": {

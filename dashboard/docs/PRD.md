@@ -1,6 +1,6 @@
-# Davina 秋招工作台 · 产品需求文档（PRD）
+# TalentRadar · 智能招聘情报 Agent（Davina）
 
-> 版本：v1.3｜产品：Davina 秋招工作台｜形态：Web 工作台 + Agent 流水线 + Agnes LLM 点评  
+> 版本：v1.4｜产品：TalentRadar｜品牌形象：Davina｜形态：Web 工作台 + Agent 流水线 + Agnes LLM 点评  
 > 部署：支持本机调试与服务器公网访问｜数据层：Hiring-Radar｜产品层：Streamlit｜大模型：Agnes 2.5 Flash
 
 ---
@@ -25,7 +25,7 @@
 
 ### 2.1 一句话定位
 
-**Davina 秋招工作台**：面向校园招聘的多源岗位情报工作台——自动拉岗、规则过滤、流程可视、AI 匹配点评、本地感兴趣清单。
+**TalentRadar（智能招聘情报 Agent）**：由 Davina 品牌形象承载的多源岗位情报工作台——自动拉岗、规则过滤、流程可视、AI 匹配点评、简历×JD 优化、本地感兴趣清单。
 
 ### 2.2 目标用户
 
@@ -91,7 +91,7 @@
 
 | 页面 | 入口 | 内容 |
 | --- | --- | --- |
-| Davina 秋招工作台 | 首页 | 检索侧栏、岗位、AI 点评、工作流、感兴趣、表格、导出 |
+| TalentRadar 工作台（Davina） | 首页 | 检索侧栏、岗位、AI 点评、简历匹配、工作流、感兴趣、表格、导出 |
 | 产品 PRD | 侧栏「产品 PRD」/ 工作台内跳转 | 本文档 |
 
 布局原则：岗位主栏优先；流程与感兴趣放侧栏，避免与主内容抢视觉焦点。
@@ -110,7 +110,7 @@
 ## 7. 技术架构
 
 ```text
-[用户浏览器] → 服务器上的 Davina 秋招工作台 (Streamlit :8501 或反代 80/443)
+[用户浏览器] → TalentRadar / Davina 工作台 (Streamlit :8501 或反代 80/443)
            ├─ radar_service：封装 Hiring-Radar 拉岗 / 过滤 / 轨迹
            ├─ ai_service：Agnes Chat Completions
            ├─ user_prefs.json：感兴趣 / 自定义公司 / 用户接入门户（当前单机文件）
@@ -148,7 +148,7 @@
 
 ## 10. 迭代记录（摘要）
 
-1. 包装 Hiring-Radar 为 Davina 秋招工作台，默认单公司精查  
+1. 包装 Hiring-Radar 为 TalentRadar（Davina）工作台，默认单公司精查  
 2. 扩展江浙沪多赛道公司池；修复飞书/Moka/北森/上实实验室链接  
 3. 待接入公司：搜官网 + 粘贴门户接入自动拉岗  
 4. Agent 蓝图与运行回放；感兴趣清单  
