@@ -17,13 +17,15 @@ import streamlit as st
 _DASHBOARD_DIR = Path(__file__).resolve().parent
 _ROOT_DIR = _DASHBOARD_DIR.parent
 _ASSETS = _DASHBOARD_DIR / "assets"
-for pth in (_ROOT_DIR, _DASHBOARD_DIR):
-    if str(pth) not in sys.path:
-        sys.path.insert(0, str(pth))
+# Cloud 上 cwd 常是仓库根目录；dashboard 必须排在 path 最前
+sys.path = [p for p in sys.path if p not in (str(_DASHBOARD_DIR), str(_ROOT_DIR))]
+sys.path[0:0] = [str(_DASHBOARD_DIR), str(_ROOT_DIR)]
 
+# 根目录也有 radar_service.py，必须按文件路径加载 dashboard 版
 _spec = importlib.util.spec_from_file_location("davina_svc", _DASHBOARD_DIR / "radar_service.py")
 _svc = importlib.util.module_from_spec(_spec)
 assert _spec.loader is not None
+sys.modules["davina_svc"] = _svc
 _spec.loader.exec_module(_svc)
 
 add_interested_job = _svc.add_interested_job

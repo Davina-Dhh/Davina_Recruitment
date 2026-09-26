@@ -13,8 +13,10 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if ROOT not in sys.path:
-    sys.path.insert(0, ROOT)
+_DASH = os.path.dirname(os.path.abspath(__file__))
+# dashboard 必须优先，否则 Cloud 在仓库根目录下找不到 my_targets
+sys.path = [p for p in sys.path if p not in (_DASH, ROOT)]
+sys.path[0:0] = [_DASH, ROOT]
 
 import hiring_radar as hr  # noqa: E402
 
