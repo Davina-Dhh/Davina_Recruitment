@@ -526,12 +526,15 @@ def main() -> None:
             max_companies = 1
 
             if run_track:
-                max_companies = st.slider(
-                    "最多扫几家",
-                    3,
-                    min(15, max(3, catalog["enabled_count"] or 3)),
-                    min(6, catalog["enabled_count"] or 3),
-                )
+                enabled_n = int(catalog["enabled_count"] or 0)
+                hi = max(1, min(15, enabled_n or 1))
+                lo = 1 if hi < 3 else 3
+                default = min(6, hi)
+                if hi <= lo:
+                    max_companies = hi
+                    st.caption(f"本赛道可扫 {hi} 家")
+                else:
+                    max_companies = st.slider("最多扫几家", lo, hi, default)
             else:
                 pick_source = st.radio("选公司", ["本赛道", "全库", "手动输入"], horizontal=True)
                 if pick_source == "本赛道":
@@ -821,7 +824,12 @@ def main() -> None:
             if not _ai.ai_ready():
                 st.error("请先在 dashboard/.env 配置 AGNES_API_KEY")
             else:
-                n = st.slider("点评前 N 条命中岗位", 1, min(8, max(1, len(jobs) or 1)), min(3, max(1, len(jobs) or 1)))
+                hi = max(1, min(8, len(jobs) or 1))
+                if hi <= 1:
+                    n = 1
+                    st.caption("当前仅 1 条（或更少）可点评")
+                else:
+                    n = st.slider("点评前 N 条命中岗位", 1, hi, min(3, hi))
                 if st.button("开始 AI 批量点评", use_container_width=True, disabled=not jobs):
                     st.session_state.active_stage = "ai"
                     with st.spinner("Agnes 分析中…"):
@@ -850,7 +858,13 @@ def main() -> None:
             if not jobs:
                 st.warning("无命中岗位。可放宽地点或缩短关键词。可到「工作流」看过滤掉了多少。")
             else:
-                show_n = st.slider("展示条数", 5, min(60, len(jobs)), min(12, len(jobs)))
+                hi = len(jobs)
+                lo = 1 if hi < 5 else 5
+                default = min(12, hi) if hi >= 5 else hi
+                if hi <= lo:
+                    show_n = hi
+                else:
+                    show_n = st.slider("展示条数", lo, min(60, hi), min(default, min(60, hi)))
                 interested_uids = {x.get("uid") for x in list_interested_jobs()}
                 for idx, job in enumerate(jobs[:show_n]):
                     company = job.get("company") or ""
