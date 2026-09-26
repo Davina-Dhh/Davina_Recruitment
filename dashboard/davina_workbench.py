@@ -47,7 +47,10 @@ try_add_company = _svc.try_add_company
 update_interested_job = _svc.update_interested_job
 
 from my_targets import (  # noqa: E402
+    BRAND_CN,
+    BRAND_DAVINA,
     BRAND_EN,
+    BRAND_FULL,
     BRAND_NAME,
     BRAND_TAGLINE,
     DEFAULT_LOCATION_MODE,
@@ -81,7 +84,7 @@ _URI_SEARCH = _img_data_uri("davina-mascot-search.png")
 _URI_STEPS = _img_data_uri("davina-agent-steps.png")
 
 st.set_page_config(
-    page_title=BRAND_NAME,
+    page_title=f"{BRAND_FULL} · {BRAND_DAVINA}",
     page_icon="🦊",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -236,14 +239,14 @@ def _link(label: str, href: str, ghost: bool = False) -> str:
 
 def _hero_html() -> str:
     mascot = (
-        f'<img class="hero-mascot" src="{_URI_HERO}" alt="Davina 小助手" />'
+        f'<img class="hero-mascot" src="{_URI_HERO}" alt="{html.escape(BRAND_DAVINA)} 小助手" />'
         if _URI_HERO
         else ""
     )
     return (
         f'<div class="hero"><div>'
-        f'<p class="eyebrow">{html.escape(BRAND_EN)} · 暖心找岗</p>'
-        f'<h1>{html.escape(BRAND_NAME)}</h1>'
+        f'<p class="eyebrow">{html.escape(BRAND_DAVINA)} · {html.escape(BRAND_EN)}</p>'
+        f'<h1>{html.escape(BRAND_NAME)} <span>{html.escape(BRAND_CN)}</span></h1>'
         f'<p>{html.escape(BRAND_TAGLINE)}</p></div>{mascot}</div>'
     )
 
@@ -433,7 +436,8 @@ def main() -> None:
                 unsafe_allow_html=True,
             )
         st.markdown(f"### {BRAND_NAME}")
-        st.page_link("davina_workbench.py", label="Davina 秋招工作台", icon="🏠")
+        st.caption(f"{BRAND_CN} · {BRAND_DAVINA}")
+        st.page_link("davina_workbench.py", label=f"{BRAND_NAME} 工作台", icon="🏠")
         st.page_link("pages/1_PRD.py", label="产品 PRD 文档", icon="📄")
         st.divider()
         if _ai.ai_ready():
@@ -718,7 +722,7 @@ def main() -> None:
             )
             st.markdown(
                 f'<div class="empty">{search_img}'
-                f'<div class="t">嗨，我是 Davina 小助手</div>'
+                f'<div class="t">嗨，我是 {html.escape(BRAND_DAVINA)}，{html.escape(BRAND_NAME)} 小助手</div>'
                 "打开左侧选公司点 <strong>开始检索</strong>；也可先上传简历，用手动 JD 做匹配。</div>",
                 unsafe_allow_html=True,
             )
