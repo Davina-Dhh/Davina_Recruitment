@@ -222,11 +222,28 @@ _SIDEBAR_JS = """
 
 
 def apply_chrome() -> None:
-    components.html(_SIDEBAR_JS, height=0)
+    # 字体用 link 注入，比 style 里 @import 在 Cloud 上更稳
+    components.html(
+        """
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@500;600;700;800&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+"""
+        + _SIDEBAR_JS,
+        height=0,
+    )
     css_path = _ASSETS / "theme.css"
     if css_path.is_file():
         css = css_path.read_text(encoding="utf-8")
-        st.markdown(f"<style>\n{css}\n</style>", unsafe_allow_html=True)
+        # Cloud 上 st.html 注入样式更不容易被消毒掉
+        style_block = f"<style>\n{css}\n</style>"
+        if hasattr(st, "html"):
+            try:
+                st.html(style_block)
+            except Exception:
+                st.markdown(style_block, unsafe_allow_html=True)
+        else:
+            st.markdown(style_block, unsafe_allow_html=True)
         st.markdown(
             """
 <style>
