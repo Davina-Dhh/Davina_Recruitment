@@ -31,10 +31,13 @@ add_keys_to_track = _svc.add_keys_to_track
 clear_interested_jobs = _svc.clear_interested_jobs
 company_display_name = _svc.company_display_name
 connect_company_from_url = _svc.connect_company_from_url
+export_user_prefs_bytes = _svc.export_user_prefs_bytes
 get_agent_pipeline = _svc.get_agent_pipeline
+import_user_prefs_bytes = _svc.import_user_prefs_bytes
 list_interested_jobs = _svc.list_interested_jobs
 list_profile_tracks = _svc.list_profile_tracks
 parse_ats_portal_url = _svc.parse_ats_portal_url
+prefs_storage_info = _svc.prefs_storage_info
 profile_track_meta = _svc.profile_track_meta
 remove_interested_job = _svc.remove_interested_job
 remove_wishlist_by_name = _svc.remove_wishlist_by_name
@@ -107,6 +110,11 @@ def _init() -> None:
     st.session_state.setdefault("resume_name", "")
     st.session_state.setdefault("resume_format", "")
     st.session_state.setdefault("resume_matches", {})
+    # 每次会话启动强制套用磁盘上的用户公司
+    try:
+        _svc._ensure_loaded()
+    except Exception:
+        pass
 
 
 def _render_resume_match(note: dict) -> None:
@@ -554,6 +562,40 @@ def main() -> None:
                                 st.rerun()
 
             do_search = st.button("开始检索", use_container_width=True)
+
+            with st.expander("公司数据持久化", expanded=False):
+                info = prefs_storage_info()
+                if info.get("writable"):
+                    st.success(
+                        f"已落盘：自建门户 {info['custom_count']} · "
+                        f"赛道加池 {info['extra_key_count']} · 待接入 {info['wishlist_count']}"
+                    )
+                else:
+                    st.warning("当前环境可能无法写盘（如部分 Cloud 重启会丢）。请用下方导出备份。")
+                st.caption(f"prefs：`{info['prefs_path']}`")
+                st.download_button(
+                    "导出我的公司/感兴趣 JSON",
+                    data=export_user_prefs_bytes(),
+                    file_name="TalentRadar_user_prefs.json",
+                    mime="application/json",
+                    use_container_width=True,
+                    key="export_prefs_btn",
+                )
+                up_prefs = st.file_uploader(
+                    "导入上次导出的 JSON（合并）",
+                    type=["json"],
+                    key="import_prefs_uploader",
+                )
+                if up_prefs is not None and st.button("确认导入并合并", use_container_width=True):
+                    try:
+                        merged = import_user_prefs_bytes(up_prefs.getvalue())
+                        st.session_state.flash = (
+                            f"已合并导入：自建 {merged['custom_count']} · "
+                            f"赛道加池 {merged['extra_key_count']}"
+                        )
+                        st.rerun()
+                    except Exception as e:
+                        st.error(str(e))
 
             with st.expander("公司池管理", expanded=False):
                 st.markdown("**可自动拉岗**")

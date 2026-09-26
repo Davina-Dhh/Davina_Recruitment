@@ -56,8 +56,9 @@ def _ensure_loaded() -> None:
     if not getattr(_ensure_loaded, "_done", False):
         hr._load_company_seeds()
         _ensure_loaded._done = True  # type: ignore[attr-defined]
-    _load_user_seed_file()
+    # 先 prefs 再 seed：prefs 为权威来源，seed 作备份
     _apply_custom_parsers()
+    _load_user_seed_file()
 
 
 def _load_user_seed_file() -> None:
@@ -78,8 +79,9 @@ def _load_user_seed_file() -> None:
             continue
         key, typ, company, a1 = parts[0].lower(), parts[1].lower(), parts[2], parts[3]
         a2 = parts[4] if len(parts) > 4 else ""
-        if not key or key in hr.LOCAL_PARSERS:
+        if not key:
             continue
+        # 用户 seed 可覆盖同 key（保证重启后仍是用户接入的门户参数）
         _inject_parser(key, typ, company, a1, a2)
 
 
@@ -364,13 +366,99 @@ def load_user_prefs() -> Dict[str, Any]:
 
 
 def save_user_prefs(prefs: Dict[str, Any]) -> None:
-    """原子写入，避免写到一半进程退出导致 prefs 损坏。"""
+    """原子写入，避免写到一半进程退出导致 prefs 损坏；并同步 user seed。"""
     os.makedirs(os.path.dirname(USER_PREFS_PATH) or ".", exist_ok=True)
     tmp = USER_PREFS_PATH + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(prefs, f, ensure_ascii=False, indent=2)
         f.write("\n")
+        f.flush()
+        os.fsync(f.fileno())
     os.replace(tmp, USER_PREFS_PATH)
+    # 自建门户与 seed 双写，重启只丢一边也能恢复
+    try:
+        if "custom_parsers" in prefs:
+            _sync_user_seed_file(prefs)
+    except Exception:
+        pass
+
+
+def prefs_storage_info() -> Dict[str, Any]:
+    """给 UI 展示：持久化路径与自建公司数量。"""
+    prefs = load_user_prefs()
+    customs = prefs.get("custom_parsers") or []
+    extras = prefs.get("extra_keys_by_track") or {}
+    extra_n = sum(len(v or []) for v in extras.values())
+    writable = False
+    try:
+        probe = USER_PREFS_PATH + ".write_test"
+        with open(probe, "w", encoding="utf-8") as f:
+            f.write("ok")
+        os.remove(probe)
+        writable = True
+    except Exception:
+        writable = False
+    return {
+        "prefs_path": USER_PREFS_PATH,
+        "seed_path": USER_SEED_PATH,
+        "custom_count": len(customs),
+        "extra_key_count": extra_n,
+        "wishlist_count": sum(
+            len(v or []) for v in (prefs.get("wishlist_by_track") or {}).values()
+        ),
+        "writable": writable,
+    }
+
+
+def export_user_prefs_bytes() -> bytes:
+    prefs = load_user_prefs()
+    return json.dumps(prefs, ensure_ascii=False, indent=2).encode("utf-8") + b"\n"
+
+
+def import_user_prefs_bytes(raw: bytes) -> Dict[str, Any]:
+    """合并导入：保留原感兴趣清单，覆盖/合并公司与赛道池。"""
+    data = json.loads(raw.decode("utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError("JSON 根节点必须是对象")
+    prefs = load_user_prefs()
+    # 合并 custom_parsers（按 key）
+    by_key = {
+        (c.get("key") or "").lower(): c
+        for c in (prefs.get("custom_parsers") or [])
+        if c.get("key")
+    }
+    for c in data.get("custom_parsers") or []:
+        k = (c.get("key") or "").strip().lower()
+        if k:
+            by_key[k] = c
+    prefs["custom_parsers"] = list(by_key.values())
+    # 合并赛道池
+    for track, keys in (data.get("extra_keys_by_track") or {}).items():
+        bucket = prefs.setdefault("extra_keys_by_track", {}).setdefault(track, [])
+        for k in keys or []:
+            k = (k or "").strip().lower()
+            if k and k not in bucket:
+                bucket.append(k)
+    # 合并 wishlist
+    for track, items in (data.get("wishlist_by_track") or {}).items():
+        bucket = prefs.setdefault("wishlist_by_track", {}).setdefault(track, [])
+        names = {(x.get("name") or "").strip() for x in bucket}
+        for it in items or []:
+            n = (it.get("name") or "").strip()
+            if n and n not in names:
+                bucket.append(it)
+                names.add(n)
+    # 感兴趣岗位：导入侧优先追加
+    seen = {x.get("uid") for x in (prefs.get("interested_jobs") or [])}
+    for job in data.get("interested_jobs") or []:
+        uid = job.get("uid")
+        if uid and uid not in seen:
+            prefs.setdefault("interested_jobs", []).append(job)
+            seen.add(uid)
+    save_user_prefs(prefs)
+    _ensure_loaded._done = False  # type: ignore[attr-defined]
+    _ensure_loaded()
+    return prefs_storage_info()
 
 
 def _job_uid(job: Dict[str, Any]) -> str:
