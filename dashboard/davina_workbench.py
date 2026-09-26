@@ -13,7 +13,6 @@ from typing import Optional
 
 import pandas as pd
 import streamlit as st
-import streamlit.components.v1 as components
 
 _DASHBOARD_DIR = Path(__file__).resolve().parent
 _ROOT_DIR = _DASHBOARD_DIR.parent
@@ -58,6 +57,7 @@ from my_targets import (  # noqa: E402
 
 import ai_service as _ai  # noqa: E402
 import resume_service as _resume  # noqa: E402
+from ui_chrome import apply_chrome  # noqa: E402
 
 _STEP_EMOJI = {
     "listen": "🎧",
@@ -88,46 +88,7 @@ st.set_page_config(
     menu_items={"Get Help": None, "Report a bug": None, "About": None},
 )
 
-components.html(
-    """
-<script>
-(function () {
-  const root = window.parent.document;
-  const kill = () => {
-    const sels = [
-      '[data-testid="stToolbar"]',
-      '[data-testid="stAppDeployButton"]',
-      '[data-testid="stDecoration"]',
-      '[data-testid="stStatusWidget"]',
-      '.stDeployButton', '.stAppDeployButton',
-      '#MainMenu', 'footer',
-      'div[data-testid="stToolbarActions"]',
-      'a[href*="share.streamlit"]',
-      'a[href*="deploy"]',
-    ];
-    sels.forEach((s) => root.querySelectorAll(s).forEach((el) => { el.style.display = 'none'; }));
-  };
-  const expandSidebar = () => {
-    const side = root.querySelector('[data-testid="stSidebar"]');
-    const visible = side && side.offsetParent !== null && side.getBoundingClientRect().width > 40;
-    if (visible) return;
-    const collapsed = root.querySelector('[data-testid="stSidebarCollapsedControl"] button')
-      || root.querySelector('button[kind="header"]')
-      || root.querySelector('[data-testid="stExpandSidebarButton"]');
-    if (collapsed) { try { collapsed.click(); } catch (e) {} }
-  };
-  kill();
-  setTimeout(expandSidebar, 150);
-  setTimeout(expandSidebar, 600);
-  new MutationObserver(kill).observe(root.body, { childList: true, subtree: true });
-})();
-</script>
-""",
-    height=0,
-)
-
-_theme_css = (_ASSETS / "theme.css").read_text(encoding="utf-8")
-st.markdown(f"<style>\n{_theme_css}\n</style>", unsafe_allow_html=True)
+apply_chrome()
 
 
 def _init() -> None:
@@ -687,6 +648,7 @@ def main() -> None:
 
     with main_col:
         st.markdown(_hero_html(), unsafe_allow_html=True)
+        st.caption("手机端：关掉左侧栏后，点左上角橙色「菜单」按钮可再打开")
         st.page_link("pages/1_PRD.py", label="阅读本产品 PRD 文档 →")
 
         if do_search:

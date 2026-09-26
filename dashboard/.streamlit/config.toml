@@ -2,7 +2,7 @@
 gatherUsageStats = false
 
 [client]
-toolbarMode = "viewer"
+toolbarMode = "minimal"
 showSidebarNavigation = true
 
 [theme]

@@ -56,15 +56,36 @@ html, body, [class*="css"], .stMarkdown, label, .stCaption, .stText {
   z-index: 1;
 }
 
+/* 只藏 Deploy，不藏侧栏展开按钮 */
 #MainMenu, footer,
 [data-testid="stToolbar"], [data-testid="stAppDeployButton"],
 [data-testid="stDecoration"], [data-testid="stStatusWidget"],
 .stDeployButton, .stAppDeployButton { display: none !important; }
 
-/* 保留顶栏里的侧栏展开按钮，只压扁空白顶栏 */
 header[data-testid="stHeader"] {
   background: transparent !important;
-  height: 3rem !important;
+  height: auto !important;
+  min-height: 3.25rem !important;
+}
+
+/* 侧栏关掉后，原生展开钮固定左上角 */
+[data-testid="stSidebarCollapsedControl"] {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: fixed !important;
+  top: 12px !important;
+  left: 12px !important;
+  z-index: 999999 !important;
+  pointer-events: auto !important;
+}
+[data-testid="stSidebarCollapsedControl"] button {
+  width: 46px !important;
+  height: 46px !important;
+  border-radius: 999px !important;
+  background: #FF6B4A !important;
+  color: #fff !important;
+  box-shadow: 0 8px 20px rgba(255,107,74,.4) !important;
 }
 
 @keyframes fadeUp {
