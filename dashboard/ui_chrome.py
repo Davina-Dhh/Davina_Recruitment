@@ -8,6 +8,85 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 _ASSETS = Path(__file__).resolve().parent / "assets"
+_DASHBOARD = Path(__file__).resolve().parent
+
+
+def home_page_path() -> str:
+    """当前 Streamlit 入口文件名（相对 dashboard/）。"""
+    try:
+        from streamlit.runtime.scriptrunner import get_script_run_ctx
+
+        ctx = get_script_run_ctx()
+        main = getattr(ctx, "main_script_path", None) if ctx else None
+        if main:
+            p = Path(main)
+            try:
+                return p.resolve().relative_to(_DASHBOARD.resolve()).as_posix()
+            except ValueError:
+                return p.name
+    except Exception:
+        pass
+    for name in ("davina_workbench.py", "Davina秋招工作台.py"):
+        if (_DASHBOARD / name).is_file():
+            return name
+    return "davina_workbench.py"
+
+
+def render_sidebar_nav() -> str:
+    """应用内导航，避免 st.page_link 在中文入口/Windows 下找不到 pages。
+
+    Returns:
+        'workbench' | 'prd'
+    """
+    st.session_state.setdefault("app_view", "workbench")
+    view = st.session_state.app_view
+    if st.button(
+        "🏠 TalentRadar 工作台",
+        use_container_width=True,
+        type="primary" if view == "workbench" else "secondary",
+        key="nav_workbench",
+    ):
+        st.session_state.app_view = "workbench"
+        st.rerun()
+    if st.button(
+        "📄 产品 PRD 文档",
+        use_container_width=True,
+        type="primary" if view == "prd" else "secondary",
+        key="nav_prd",
+    ):
+        st.session_state.app_view = "prd"
+        st.rerun()
+    return st.session_state.app_view
+
+
+def render_prd_view() -> None:
+    """在同一入口内渲染 PRD，不依赖 multipage page_link。"""
+    from my_targets import BRAND_CN, BRAND_DAVINA, BRAND_NAME
+
+    st.markdown(
+        f'<div class="hero" style="grid-template-columns:1fr">'
+        f'<div><p class="eyebrow">PRODUCT REQUIREMENTS · {BRAND_DAVINA}</p>'
+        f"<h1>{BRAND_NAME} <span>产品 PRD</span></h1>"
+        f"<p>{BRAND_CN} · 系统内可读的产品需求文档</p></div></div>",
+        unsafe_allow_html=True,
+    )
+    if st.button("← 返回 TalentRadar 工作台", key="prd_back"):
+        st.session_state.app_view = "workbench"
+        st.rerun()
+
+    prd_file = _DASHBOARD / "docs" / "PRD.md"
+    if not prd_file.is_file():
+        st.error("未找到 docs/PRD.md")
+        return
+    st.download_button(
+        "下载 PRD Markdown",
+        data=prd_file.read_text(encoding="utf-8"),
+        file_name="TalentRadar_PRD.md",
+        mime="text/markdown",
+    )
+    st.markdown('<div class="prd-wrap prd-card">', unsafe_allow_html=True)
+    st.markdown(prd_file.read_text(encoding="utf-8"))
+    st.markdown("</div>", unsafe_allow_html=True)
 
 _SIDEBAR_JS = """
 <script>

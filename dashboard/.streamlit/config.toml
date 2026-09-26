@@ -3,7 +3,7 @@ gatherUsageStats = false
 
 [client]
 toolbarMode = "minimal"
-showSidebarNavigation = true
+showSidebarNavigation = false
 
 [theme]
 base = "light"

@@ -10,11 +10,10 @@ venv/
 
 # 本地数据与密钥
 dashboard/.env
-dashboard/user_prefs.json
 dashboard/*.log
 dashboard/_*.json
 dashboard/_*.txt
-parsers/companies.user.seed
+# user_prefs.json / companies.user.seed 纳入版本库，保证下次打开与 Cloud 部署仍有用户公司
 
 # 探测/临时脚本与抓取缓存
 parsers/_probe*

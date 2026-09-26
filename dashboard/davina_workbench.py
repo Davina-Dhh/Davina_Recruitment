@@ -59,7 +59,7 @@ from my_targets import (  # noqa: E402
 
 import ai_service as _ai  # noqa: E402
 import resume_service as _resume  # noqa: E402
-from ui_chrome import apply_chrome  # noqa: E402
+from ui_chrome import apply_chrome, render_prd_view, render_sidebar_nav  # noqa: E402
 
 _STEP_EMOJI = {
     "listen": "🎧",
@@ -436,187 +436,203 @@ def main() -> None:
             )
         st.markdown(f"### {BRAND_NAME}")
         st.caption(f"{BRAND_CN} · {BRAND_DAVINA}")
-        st.page_link("davina_workbench.py", label="TalentRadar 工作台", icon="🏠")
-        st.page_link("pages/1_PRD.py", label="产品 PRD 文档", icon="📄")
+        app_view = render_sidebar_nav()
         st.divider()
-        if _ai.ai_ready():
-            st.success(f"Agnes 已接入 · {_ai.get_model()}")
-        else:
-            st.warning("未配置 AGNES_API_KEY（见 dashboard/.env）")
-        st.text_area(
-            "我的画像（给 AI 点评用）",
-            key="user_profile",
-            height=80,
-            help="背景、目标岗位、城市偏好等，AI 会据此打分",
-        )
-        st.markdown("**上传简历（PDF / Word）**")
-        up = st.file_uploader(
-            "选择文件",
-            type=["pdf", "docx"],
-            accept_multiple_files=False,
-            label_visibility="collapsed",
-            key="resume_uploader",
-        )
-        if up is not None:
-            try:
-                text, fmt = _resume.extract_resume_text(up.name, up.getvalue())
-                st.session_state.resume_text = text
-                st.session_state.resume_name = up.name
-                st.session_state.resume_format = fmt
-                st.success(f"已解析 {fmt} · {len(text)} 字")
-            except Exception as e:
-                st.error(str(e))
-        if st.session_state.get("resume_text"):
-            st.caption(
-                f"当前简历：{st.session_state.get('resume_name') or '已上传'} · "
-                f"{len(st.session_state.resume_text)} 字"
-            )
-            if st.button("清除简历", use_container_width=True):
-                st.session_state.resume_text = ""
-                st.session_state.resume_name = ""
-                st.session_state.resume_format = ""
-                st.session_state.resume_matches = {}
-                st.rerun()
-        mode = st.radio(
-            "查询方式",
-            ["单公司精查", "按赛道批量扫"],
-            index=0 if DEFAULT_QUERY_MODE == "单公司精查" else 1,
-        )
-        track = st.selectbox(
-            "赛道",
-            tracks,
-            index=tracks.index(DEFAULT_TRACK) if DEFAULT_TRACK in tracks else 0,
-        )
-        location_mode = st.radio(
-            "地点",
-            ["江浙沪优先", "不限地点"],
-            index=0 if DEFAULT_LOCATION_MODE == "江浙沪优先" else 1,
-        )
-        recent_days = st.number_input("近 N 天（0=不限）", 0, 365, 0)
-
-        catalog = track_company_catalog(track)
-        meta = profile_track_meta(track)
-        st.caption(f"已可检索 {catalog['enabled_count']} 家 · 全库 {catalog['system_total']} 家")
-
-        keyword = st.text_input("关键词", value=meta.get("keywords") or "产品", key=f"kw_{track}_{mode}")
-        run_track = mode == "按赛道批量扫"
+        mode = "单公司精查"
+        track = DEFAULT_TRACK if DEFAULT_TRACK in tracks else (tracks[0] if tracks else "")
+        location_mode = DEFAULT_LOCATION_MODE
+        recent_days = 0
+        catalog = {"enabled": [], "enabled_count": 0, "system_total": 0, "available_to_add": [], "wishlist": []}
+        meta = {}
+        keyword = "产品"
+        run_track = False
         target = ""
         max_companies = 1
+        do_search = False
 
-        if run_track:
-            max_companies = st.slider(
-                "最多扫几家",
-                3,
-                min(15, max(3, catalog["enabled_count"] or 3)),
-                min(6, catalog["enabled_count"] or 3),
-            )
-        else:
-            pick_source = st.radio("选公司", ["本赛道", "全库", "手动输入"], horizontal=True)
-            if pick_source == "本赛道":
-                labels = [c["label"] for c in catalog["enabled"]] or ["（暂无）"]
-                idx = next((i for i, c in enumerate(catalog["enabled"]) if c["key"] == "shlab"), 0)
-                pick = st.selectbox("公司", labels, index=min(idx, max(len(labels) - 1, 0)))
-                target = next((c["key"] for c in catalog["enabled"] if c["label"] == pick), "")
-            elif pick_source == "全库":
-                key_map = {c["label"]: c["key"] for c in catalog["enabled"] + catalog["available_to_add"]}
-                pick = st.selectbox("公司", sorted(key_map.keys()))
-                target = key_map.get(pick, "")
+        if app_view != "prd":
+            if _ai.ai_ready():
+                st.success(f"Agnes 已接入 · {_ai.get_model()}")
             else:
-                manual = st.text_input("公司名或 key", placeholder="智谱 / shlab / 中芯国际")
-                if manual.strip():
-                    resolved = resolve_company_key(manual)
-                    if resolved:
-                        target = resolved
-                        st.success(f"可检索：{company_display_name(resolved)}")
-                    else:
-                        st.warning("库中暂无此公司，无法自动拉岗。")
-                        if st.button("登记到待接入并搜官网", use_container_width=True):
-                            ret = try_add_company(track, manual.strip())
-                            tip = {
-                                "message": ret.get("message"),
-                                "item": ret.get("item"),
-                                "suggest": suggest_scrapable(track, 5),
-                            }
-                            st.session_state.pending_tip = tip
-                            st.session_state.flash = ret.get("message") or "已登记"
-                            st.rerun()
-
-        do_search = st.button("开始检索", use_container_width=True)
-
-        with st.expander("公司池管理", expanded=False):
-            st.markdown("**可自动拉岗**")
-            st.markdown(
-                "<div>"
-                + "".join(f'<span class="chip chip-ok">{html.escape(c["name"])}</span>' for c in catalog["enabled"][:40])
-                + (" …" if len(catalog["enabled"]) > 40 else "")
-                + "</div>",
-                unsafe_allow_html=True,
+                st.warning("未配置 AGNES_API_KEY（见 dashboard/.env）")
+            st.text_area(
+                "我的画像（给 AI 点评用）",
+                key="user_profile",
+                height=80,
+                help="背景、目标岗位、城市偏好等，AI 会据此打分",
             )
-
-            st.markdown("**粘贴门户链接 → 接入自动拉岗**")
-            st.caption(
-                "搜到官网后，打开校招/社招页面，复制地址栏链接。"
-                "仅支持飞书（*.jobs.feishu.cn）、Moka（app.mokahr.com）、北森（*.zhiye.com）。"
+            st.markdown("**上传简历（PDF / Word）**")
+            up = st.file_uploader(
+                "选择文件",
+                type=["pdf", "docx"],
+                accept_multiple_files=False,
+                label_visibility="collapsed",
+                key="resume_uploader",
             )
-            conn_name = st.text_input("公司名称", key=f"conn_name_{track}", placeholder="例如：商汤科技")
-            conn_url = st.text_input(
-                "招聘门户链接",
-                key=f"conn_url_{track}",
-                placeholder="https://xxx.jobs.feishu.cn 或 app.mokahr.com/…",
-            )
-            if conn_url.strip():
-                preview = parse_ats_portal_url(conn_url)
-                if preview:
-                    st.success(f"已识别：{preview['type']} · {preview['arg1']}" + (f" / {preview['arg2']}" if preview.get("arg2") else ""))
-                else:
-                    st.warning("链接格式暂不支持，请确认是飞书 / Moka / 北森门户页")
-            if st.button("接入并加入本赛道", disabled=not (conn_name.strip() and conn_url.strip()), key=f"conn_btn_{track}"):
+            if up is not None:
                 try:
-                    ret = connect_company_from_url(track, conn_name.strip(), conn_url.strip())
-                    st.session_state.flash = ret.get("message") or "已接入"
-                    st.rerun()
+                    text, fmt = _resume.extract_resume_text(up.name, up.getvalue())
+                    st.session_state.resume_text = text
+                    st.session_state.resume_name = up.name
+                    st.session_state.resume_format = fmt
+                    st.success(f"已解析 {fmt} · {len(text)} 字")
                 except Exception as e:
                     st.error(str(e))
+            if st.session_state.get("resume_text"):
+                st.caption(
+                    f"当前简历：{st.session_state.get('resume_name') or '已上传'} · "
+                    f"{len(st.session_state.resume_text)} 字"
+                )
+                if st.button("清除简历", use_container_width=True):
+                    st.session_state.resume_text = ""
+                    st.session_state.resume_name = ""
+                    st.session_state.resume_format = ""
+                    st.session_state.resume_matches = {}
+                    st.rerun()
+            mode = st.radio(
+                "查询方式",
+                ["单公司精查", "按赛道批量扫"],
+                index=0 if DEFAULT_QUERY_MODE == "单公司精查" else 1,
+            )
+            track = st.selectbox(
+                "赛道",
+                tracks,
+                index=tracks.index(DEFAULT_TRACK) if DEFAULT_TRACK in tracks else 0,
+            )
+            location_mode = st.radio(
+                "地点",
+                ["江浙沪优先", "不限地点"],
+                index=0 if DEFAULT_LOCATION_MODE == "江浙沪优先" else 1,
+            )
+            recent_days = st.number_input("近 N 天（0=不限）", 0, 365, 0)
 
-            wish = catalog.get("wishlist") or []
-            st.markdown(f"**待接入（{len(wish)}）** — 先搜官网，再把门户链接贴到上方接入")
-            for w in wish[:12]:
-                name = w.get("name") or ""
-                hint = w.get("search_hint") or w.get("url") or ""
+            catalog = track_company_catalog(track)
+            meta = profile_track_meta(track)
+            st.caption(f"已可检索 {catalog['enabled_count']} 家 · 全库 {catalog['system_total']} 家")
+
+            keyword = st.text_input("关键词", value=meta.get("keywords") or "产品", key=f"kw_{track}_{mode}")
+            run_track = mode == "按赛道批量扫"
+            target = ""
+            max_companies = 1
+
+            if run_track:
+                max_companies = st.slider(
+                    "最多扫几家",
+                    3,
+                    min(15, max(3, catalog["enabled_count"] or 3)),
+                    min(6, catalog["enabled_count"] or 3),
+                )
+            else:
+                pick_source = st.radio("选公司", ["本赛道", "全库", "手动输入"], horizontal=True)
+                if pick_source == "本赛道":
+                    labels = [c["label"] for c in catalog["enabled"]] or ["（暂无）"]
+                    idx = next((i for i, c in enumerate(catalog["enabled"]) if c["key"] == "shlab"), 0)
+                    pick = st.selectbox("公司", labels, index=min(idx, max(len(labels) - 1, 0)))
+                    target = next((c["key"] for c in catalog["enabled"] if c["label"] == pick), "")
+                elif pick_source == "全库":
+                    key_map = {c["label"]: c["key"] for c in catalog["enabled"] + catalog["available_to_add"]}
+                    pick = st.selectbox("公司", sorted(key_map.keys()))
+                    target = key_map.get(pick, "")
+                else:
+                    manual = st.text_input("公司名或 key", placeholder="智谱 / shlab / 中芯国际")
+                    if manual.strip():
+                        resolved = resolve_company_key(manual)
+                        if resolved:
+                            target = resolved
+                            st.success(f"可检索：{company_display_name(resolved)}")
+                        else:
+                            st.warning("库中暂无此公司，无法自动拉岗。")
+                            if st.button("登记到待接入并搜官网", use_container_width=True):
+                                ret = try_add_company(track, manual.strip())
+                                tip = {
+                                    "message": ret.get("message"),
+                                    "item": ret.get("item"),
+                                    "suggest": suggest_scrapable(track, 5),
+                                }
+                                st.session_state.pending_tip = tip
+                                st.session_state.flash = ret.get("message") or "已登记"
+                                st.rerun()
+
+            do_search = st.button("开始检索", use_container_width=True)
+
+            with st.expander("公司池管理", expanded=False):
+                st.markdown("**可自动拉岗**")
                 st.markdown(
-                    f'<span class="chip chip-miss">{html.escape(name)}</span>',
+                    "<div>"
+                    + "".join(f'<span class="chip chip-ok">{html.escape(c["name"])}</span>' for c in catalog["enabled"][:40])
+                    + (" …" if len(catalog["enabled"]) > 40 else "")
+                    + "</div>",
                     unsafe_allow_html=True,
                 )
-                b1, b2, b3 = st.columns([1, 1, 1.2])
-                if hint:
-                    b1.markdown(_link("搜官网", hint, ghost=True), unsafe_allow_html=True)
-                wish_url = b3.text_input(
-                    "门户链接",
-                    key=f"wish_url_{track}_{name}",
-                    placeholder="粘贴门户 URL",
-                    label_visibility="collapsed",
+
+                st.markdown("**粘贴门户链接 → 接入自动拉岗**")
+                st.caption(
+                    "搜到官网后，打开校招/社招页面，复制地址栏链接。"
+                    "仅支持飞书（*.jobs.feishu.cn）、Moka（app.mokahr.com）、北森（*.zhiye.com）。"
                 )
-                if b2.button("接入", key=f"wish_conn_{track}_{name}", disabled=not wish_url.strip()):
+                conn_name = st.text_input("公司名称", key=f"conn_name_{track}", placeholder="例如：商汤科技")
+                conn_url = st.text_input(
+                    "招聘门户链接",
+                    key=f"conn_url_{track}",
+                    placeholder="https://xxx.jobs.feishu.cn 或 app.mokahr.com/…",
+                )
+                if conn_url.strip():
+                    preview = parse_ats_portal_url(conn_url)
+                    if preview:
+                        st.success(f"已识别：{preview['type']} · {preview['arg1']}" + (f" / {preview['arg2']}" if preview.get("arg2") else ""))
+                    else:
+                        st.warning("链接格式暂不支持，请确认是飞书 / Moka / 北森门户页")
+                if st.button("接入并加入本赛道", disabled=not (conn_name.strip() and conn_url.strip()), key=f"conn_btn_{track}"):
                     try:
-                        ret = connect_company_from_url(track, name, wish_url.strip())
+                        ret = connect_company_from_url(track, conn_name.strip(), conn_url.strip())
                         st.session_state.flash = ret.get("message") or "已接入"
                         st.rerun()
                     except Exception as e:
                         st.error(str(e))
-                if st.button("删除登记", key=f"del_wish_{name}"):
-                    remove_wishlist_by_name(track, name)
+
+                wish = catalog.get("wishlist") or []
+                st.markdown(f"**待接入（{len(wish)}）** — 先搜官网，再把门户链接贴到上方接入")
+                for w in wish[:12]:
+                    name = w.get("name") or ""
+                    hint = w.get("search_hint") or w.get("url") or ""
+                    st.markdown(
+                        f'<span class="chip chip-miss">{html.escape(name)}</span>',
+                        unsafe_allow_html=True,
+                    )
+                    b1, b2, b3 = st.columns([1, 1, 1.2])
+                    if hint:
+                        b1.markdown(_link("搜官网", hint, ghost=True), unsafe_allow_html=True)
+                    wish_url = b3.text_input(
+                        "门户链接",
+                        key=f"wish_url_{track}_{name}",
+                        placeholder="粘贴门户 URL",
+                        label_visibility="collapsed",
+                    )
+                    if b2.button("接入", key=f"wish_conn_{track}_{name}", disabled=not wish_url.strip()):
+                        try:
+                            ret = connect_company_from_url(track, name, wish_url.strip())
+                            st.session_state.flash = ret.get("message") or "已接入"
+                            st.rerun()
+                        except Exception as e:
+                            st.error(str(e))
+                    if st.button("删除登记", key=f"del_wish_{name}"):
+                        remove_wishlist_by_name(track, name)
+                        st.rerun()
+
+                picked = st.multiselect(
+                    "从全库加入本赛道（加入后可直接检索）",
+                    [c["label"] for c in catalog["available_to_add"]],
+                    key=f"add_{track}",
+                )
+                if st.button("确认加入本赛道", disabled=not picked):
+                    keys = [c["key"] for c in catalog["available_to_add"] if c["label"] in picked]
+                    added = add_keys_to_track(track, keys)
+                    st.session_state.flash = f"已加入 {len(added)} 家，请在「本赛道」里选择并检索"
                     st.rerun()
 
-            picked = st.multiselect(
-                "从全库加入本赛道（加入后可直接检索）",
-                [c["label"] for c in catalog["available_to_add"]],
-                key=f"add_{track}",
-            )
-            if st.button("确认加入本赛道", disabled=not picked):
-                keys = [c["key"] for c in catalog["available_to_add"] if c["label"] in picked]
-                added = add_keys_to_track(track, keys)
-                st.session_state.flash = f"已加入 {len(added)} 家，请在「本赛道」里选择并检索"
-                st.rerun()
+    if app_view == "prd":
+        render_prd_view()
+        return
 
     if st.session_state.flash:
         st.toast(st.session_state.flash)
@@ -652,7 +668,9 @@ def main() -> None:
     with main_col:
         st.markdown(_hero_html(), unsafe_allow_html=True)
         st.caption("手机端：关掉左侧栏后，点左上角橙色「菜单」按钮可再打开")
-        st.page_link("pages/1_PRD.py", label="阅读本产品 PRD 文档 →")
+        if st.button("阅读本产品 PRD 文档 →", key="open_prd_main"):
+            st.session_state.app_view = "prd"
+            st.rerun()
 
         if do_search:
             st.session_state.error = None

@@ -52,10 +52,11 @@ _GLOBAL_PRESETS = {
 
 
 def _ensure_loaded() -> None:
+    """加载官方 seed；每次调用都重新套用用户公司（防 Streamlit 热重载丢解析器）。"""
     if not getattr(_ensure_loaded, "_done", False):
         hr._load_company_seeds()
-        _load_user_seed_file()
         _ensure_loaded._done = True  # type: ignore[attr-defined]
+    _load_user_seed_file()
     _apply_custom_parsers()
 
 
@@ -114,6 +115,28 @@ def _apply_custom_parsers() -> None:
             item.get("arg1") or "",
             item.get("arg2") or "",
         )
+
+
+def _sync_user_seed_file(prefs: Optional[Dict[str, Any]] = None) -> None:
+    """用 custom_parsers 全量重写 companies.user.seed，保证下次启动可恢复。"""
+    prefs = prefs if prefs is not None else load_user_prefs()
+    customs = prefs.get("custom_parsers") or []
+    lines = ["# 用户自行接入的公司（粘贴门户链接 / 工作台添加，勿手改 key）\n"]
+    for item in customs:
+        key = (item.get("key") or "").strip().lower()
+        typ = (item.get("type") or "").strip().lower()
+        name = (item.get("name") or key).strip()
+        a1 = (item.get("arg1") or "").strip()
+        a2 = (item.get("arg2") or "").strip()
+        track = (item.get("track") or "").strip()
+        if not key or not typ or not a1:
+            continue
+        lines.append(f"{key} | {typ} | {name} | {a1} | {a2} | {track}\n")
+    os.makedirs(os.path.dirname(USER_SEED_PATH) or ".", exist_ok=True)
+    tmp = USER_SEED_PATH + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        f.writelines(lines)
+    os.replace(tmp, USER_SEED_PATH)
 
 
 def _parse_seed_meta() -> Dict[str, Tuple[str, str]]:
@@ -264,24 +287,14 @@ def connect_company_from_url(
     customs = [c for c in customs if (c.get("key") or "").lower() != use_key]
     customs.append(row)
     prefs["custom_parsers"] = customs
+    # 确保写入赛道池，下次打开仍在「本赛道」
+    bucket = prefs.setdefault("extra_keys_by_track", {}).setdefault(track, [])
+    if use_key not in bucket:
+        bucket.append(use_key)
     save_user_prefs(prefs)
-
-    # 持久化到 user seed，便于下次启动
-    line = f"{use_key} | {typ} | {name} | {a1} | {a2} | {track}\n"
-    existing = ""
-    if os.path.isfile(USER_SEED_PATH):
-        with open(USER_SEED_PATH, encoding="utf-8") as f:
-            existing = f.read()
-    if f"{use_key} |" not in existing and f"{use_key}|" not in existing.replace(" ", ""):
-        with open(USER_SEED_PATH, "a", encoding="utf-8") as f:
-            if existing and not existing.endswith("\n"):
-                f.write("\n")
-            if not existing:
-                f.write("# 用户自行接入的公司（粘贴门户链接生成）\n")
-            f.write(line)
+    _sync_user_seed_file(prefs)
 
     _inject_parser(use_key, typ, name, a1, a2)
-    add_keys_to_track(track, [use_key])
     remove_wishlist_by_name(track, name)
 
     type_label = {"feishu": "飞书", "moka": "Moka", "beisen": "北森"}.get(typ, typ)
@@ -340,15 +353,24 @@ def load_user_prefs() -> Dict[str, Any]:
         if not isinstance(data, dict):
             return dict(empty)
         for k, v in empty.items():
-            data.setdefault(k, v if not isinstance(v, dict) else {})
+            data.setdefault(k, v if not isinstance(v, list) else list(v))
+            if isinstance(v, dict) and not isinstance(data.get(k), dict):
+                data[k] = {}
+            if isinstance(v, list) and not isinstance(data.get(k), list):
+                data[k] = []
         return data
     except Exception:
         return dict(empty)
 
 
 def save_user_prefs(prefs: Dict[str, Any]) -> None:
-    with open(USER_PREFS_PATH, "w", encoding="utf-8") as f:
+    """原子写入，避免写到一半进程退出导致 prefs 损坏。"""
+    os.makedirs(os.path.dirname(USER_PREFS_PATH) or ".", exist_ok=True)
+    tmp = USER_PREFS_PATH + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
         json.dump(prefs, f, ensure_ascii=False, indent=2)
+        f.write("\n")
+    os.replace(tmp, USER_PREFS_PATH)
 
 
 def _job_uid(job: Dict[str, Any]) -> str:
@@ -585,6 +607,13 @@ def track_company_catalog(track_name: str) -> Dict[str, Any]:
                     base_keys.append(key)
     for k in extra:
         if k in hr.LOCAL_PARSERS and k not in base_keys:
+            base_keys.append(k)
+    # 用户接入的门户：按 track 字段归入本赛道（即使 extra_keys 漏写也能恢复）
+    for item in prefs.get("custom_parsers") or []:
+        if (item.get("track") or "") != track_name:
+            continue
+        k = (item.get("key") or "").strip().lower()
+        if k and k in hr.LOCAL_PARSERS and k not in base_keys:
             base_keys.append(k)
 
     enabled = []
