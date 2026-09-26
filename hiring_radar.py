@@ -683,6 +683,10 @@ def fetch_local(spec, name="local", keyword="", company=""):
 
     timeout = (spec.get("timeout_ms") or 90000) / 1000
     maxb = int(spec.get("max_buffer") or 4_000_000)
+    env = os.environ.copy()
+    # Windows 子进程默认 GBK，岗位标题里的特殊连字符等会导致 print 崩
+    env["PYTHONIOENCODING"] = "utf-8"
+    env["PYTHONUTF8"] = "1"
     try:
         p = subprocess.run(
             [cmd] + args,
@@ -692,6 +696,7 @@ def fetch_local(spec, name="local", keyword="", company=""):
             encoding="utf-8",
             errors="replace",
             timeout=timeout,
+            env=env,
         )
     except subprocess.TimeoutExpired:
         raise RuntimeError(f"local parser 超时({timeout}s): {name}")

@@ -49,4 +49,6 @@ def fetch(keyword="", pages=10, size=10):  # 百度 pageSize 只接受小值(>20
 if __name__ == "__main__":
     kw = sys.argv[1] if len(sys.argv) > 1 else ""
     pg = int(sys.argv[2]) if len(sys.argv) > 2 else 6
-    print(json.dumps(fetch(kw, pg), ensure_ascii=False))
+    from _json_out import emit_json
+
+    emit_json(fetch(kw, pg))

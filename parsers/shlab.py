@@ -56,4 +56,6 @@ def fetch(keyword: str = "", pages: int = 4):
 if __name__ == "__main__":
     kw = sys.argv[1] if len(sys.argv) > 1 else ""
     pages = int(sys.argv[2]) if len(sys.argv) > 2 else 4
-    print(json.dumps(fetch(kw, pages), ensure_ascii=False))
+    from _json_out import emit_json
+
+    emit_json(fetch(kw, pages))

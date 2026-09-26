@@ -102,4 +102,6 @@ if __name__ == "__main__":
         sys.exit("[moka] orgId 应为字母数字/连字符、siteId 应为纯数字")
     kw = sys.argv[4] if len(sys.argv) > 4 else ""
     pg = int(sys.argv[5]) if len(sys.argv) > 5 else 10
-    print(json.dumps(fetch(org, site, company, kw, pg), ensure_ascii=False))
+    from _json_out import emit_json
+
+    emit_json(fetch(org, site, company, kw, pg))

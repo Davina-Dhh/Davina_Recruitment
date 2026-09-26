@@ -117,4 +117,6 @@ if __name__ == "__main__":
     host, company = sys.argv[1], sys.argv[2]
     kw = sys.argv[3] if len(sys.argv) > 3 else ""
     pg = int(sys.argv[4]) if len(sys.argv) > 4 else 8
-    print(json.dumps(fetch(host, company, kw, pg), ensure_ascii=False))
+    from _json_out import emit_json
+
+    emit_json(fetch(host, company, kw, pg))
